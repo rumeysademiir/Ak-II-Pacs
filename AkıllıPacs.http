@@ -1,0 +1,6 @@
+@AkıllıPacs_HostAddress = http://localhost:5100
+
+GET {{AkıllıPacs_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

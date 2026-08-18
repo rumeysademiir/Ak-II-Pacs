@@ -1,0 +1,213 @@
+﻿:root {
+    --pacs-bg: #0f172a;
+    --pacs-card-bg: #1e293b;
+    --pacs-border: #334155;
+    --pacs-accent: #38bdf8;
+    --pacs-text: #f8fafc;
+    --pacs-text-muted: #94a3b8;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--pacs-bg);
+    color: var(--pacs-text);
+    min-height: 100vh;
+}
+
+/* Glassmorphism & Modern Card Styling */
+.card-pacs {
+    background-color: var(--pacs-card-bg);
+    border: 1px solid var(--pacs-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+}
+
+.navbar-pacs {
+    background-color: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--pacs-border);
+}
+
+/* Stat Cards Styling */
+.stat-box {
+    background: linear-gradient(145deg, rgba(51, 65, 85, 0.4), rgba(30, 41, 59, 0.8));
+    border: 1px solid var(--pacs-border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+    .stat-box:hover {
+        transform: translateY(-3px);
+        border-color: var(--pacs-accent);
+    }
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+/* Drag & Drop Upload Zone */
+.upload-zone {
+    border: 2px dashed #475569;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.4);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .upload-zone:hover {
+        border-color: var(--pacs-accent);
+        background: rgba(56, 189, 248, 0.05);
+    }
+
+/* Form Controls */
+.form-control-pacs, .form-select-pacs {
+    background-color: #0f172a;
+    border: 1px solid var(--pacs-border);
+    color: var(--pacs-text);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+}
+
+    .form-control-pacs:focus, .form-select-pacs:focus {
+        background-color: #0f172a;
+        border-color: var(--pacs-accent);
+        color: var(--pacs-text);
+        box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.15);
+    }
+
+/* Table Styling */
+.table-pacs {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--pacs-text);
+    --bs-table-border-color: var(--pacs-border);
+    --bs-table-hover-bg: rgba(56, 189, 248, 0.05);
+    --bs-table-hover-color: var(--pacs-text);
+    color: var(--pacs-text);
+    border-color: var(--pacs-border);
+}
+
+    .table-pacs thead th {
+        background-color: #0f172a;
+        color: var(--pacs-text-muted) !important;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        border-bottom: 1px solid var(--pacs-border);
+        padding: 1rem;
+    }
+
+    .table-pacs tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        color: var(--pacs-text) !important;
+    }
+
+    .table-pacs tbody tr:hover {
+        background-color: rgba(56, 189, 248, 0.03);
+    }
+
+/* Custom Badges */
+.badge-modality {
+    padding: 0.35em 0.75em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+    background-color: #0284c7 !important;
+    color: #ffffff !important;
+}
+
+.badge-priority-high {
+    background: rgba(239, 68, 68, 0.2) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(239, 68, 68, 0.4) !important;
+}
+
+.badge-priority-normal {
+    background: rgba(34, 197, 94, 0.2) !important;
+    color: #4ade80 !important;
+    border: 1px solid rgba(34, 197, 94, 0.4) !important;
+}
+
+/* Statü Badge Fixes */
+.badge-status-waiting, .bg-warning {
+    background-color: #f59e0b !important;
+    color: #0f172a !important; /* Sarı üzerine koyu yazı */
+    font-weight: 700 !important;
+}
+
+.badge-status-completed, .bg-success {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Custom Progress Bar */
+.progress-pacs {
+    height: 8px;
+    background-color: #0f172a;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Refresh Button Spin Animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin-animation {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Metin Seçimi (Text Selection / Highlight) Düzeltmesi */
+::selection {
+    background-color: var(--pacs-accent) !important;
+    color: #0f172a !important;
+}
+
+::-moz-selection {
+    background-color: var(--pacs-accent) !important;
+    color: #0f172a !important;
+}
+
+/* --- AI Heatmap / Grad-CAM Overlay Stilleri --- */
+.viewer-container {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.heatmap-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    border-radius: 8px;
+}
+
+    /* Lezyon Simülasyonu: Yüksek öncelikli çekimler için sıcak bölge vurgusu */
+    .heatmap-overlay.active {
+        opacity: 0.65;
+        background: radial-gradient( circle at 45% 40%, rgba(255, 0, 0, 0.85) 0%, rgba(255, 140, 0, 0.6) 20%, rgba(255, 215, 0, 0.3) 40%, transparent 65% );
+    }

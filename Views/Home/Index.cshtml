@@ -1,0 +1,970 @@
+﻿@{
+    ViewData["Title"] = "Akıllı PACS - AI Radyoloji ve Kalite Portalı";
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Akıllı PACS Portalı</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css?v=2.0" />
+
+    <style>
+        @@media print {
+            body {
+                visibility: hidden;
+            }
+
+            #printableReportArea, #printableReportArea * {
+                visibility: visible;
+            }
+
+            #printableReportArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                color: #000 !important;
+                background: #fff !important;
+                padding: 20px;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Acil Vaka Bildirimleri İçin Toast Container  -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;" id="toastContainer">
+        <!-- Dinamik Acil Vaka Bildirimleri Buraya Eklenecek -->
+    </div>
+
+    <!-- Üst Navigasyon Barı -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-pacs sticky-top py-3">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-3 fw-bold fs-4" href="#">
+                <div class="bg-primary bg-gradient p-2 rounded-3 d-flex align-items-center justify-content-center" style="width:42px; height:42px;">
+                    <i class="bi bi-cpu-fill text-white fs-4"></i>
+                </div>
+                <span>Akıllı<span class="text-info">PACS</span> AI Engine</span>
+            </a>
+
+            <!-- Dinamik Kullanıcı Alanı ve Çıkış Butonu -->
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end d-none d-sm-block">
+                    <span class="d-block fw-semibold text-white">
+                        <i class="bi bi-person-circle text-info me-1"></i>
+                        @(Context.Session.GetString("Username") ?? "Aktif Kullanıcı")
+                    </span>
+                    <small class="text-info opacity-75">
+                        <i class="bi bi-circle-fill text-success fs-6 me-1"></i> PACS Sunucusu Aktif
+                    </small>
+                </div>
+                <a href="/Home/Logout" class="btn btn-outline-danger btn-sm rounded-3 px-3 py-2" title="Oturumu Kapat">
+                    <i class="bi bi-box-arrow-right me-1"></i> Çıkış
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 my-4">
+
+        <!-- Sayfa Başlığı ve İstatistik Özeti -->
+        <div class="row g-3 mb-4 align-items-center">
+            <div class="col-md-6">
+                <h2 class="fw-bold mb-1 text-white"><i class="bi bi-grid-1x2 text-info me-2"></i>Görüntü Analiz Paneli</h2>
+                <p class="text-secondary mb-0">DICOM ve tıbbi görüntü kalite kontrol sistemi. Yapay zeka tabanlı canlı Laplace varyansı & netlik puanlaması.</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <button class="btn btn-outline-info rounded-3 px-3 py-2" id="btnRefresh" onclick="refreshDataWithAnimation()">
+                    <i class="bi bi-arrow-repeat me-2" id="refreshIcon"></i>Veritabanını Yenile
+                </button>
+            </div>
+        </div>
+
+        <!-- İstatistik Metrik Kartları -->
+        <div class="row g-3 mb-4">
+            <div class="col-xl-4 col-md-4">
+                <div class="stat-box">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small fw-medium text-uppercase">Toplam Indekslenen</span>
+                            <h2 class="fw-bold text-white mb-0 mt-1" id="statTotalCount">0</h2>
+                        </div>
+                        <div class="stat-icon bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-database-fill-gear"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4 col-md-4">
+                <div class="stat-box">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small fw-medium text-uppercase">Ortalama Kalite Skoru</span>
+                            <h2 class="fw-bold text-success mb-0 mt-1" id="statAvgQuality">%0</h2>
+                        </div>
+                        <div class="stat-icon bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-patch-check-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4 col-md-4">
+                <div class="stat-box">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small fw-medium text-uppercase">Yüksek Öncelikli (Acil)</span>
+                            <h2 class="fw-bold text-danger mb-0 mt-1" id="statPriorityCount">0</h2>
+                        </div>
+                        <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ana Çalışma Alanı: Sol Form, Sağ Analiz Çıktısı -->
+        <div class="row g-4 mb-4">
+
+            <!-- Sol Panel: Yeni Analiz Formu -->
+            <div class="col-lg-5">
+                <div class="card-pacs p-4 h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary pb-3">
+                        <h5 class="fw-bold text-white mb-0"><i class="bi bi-cloud-upload-fill text-info me-2"></i>Yeni Görsel Yükle</h5>
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">AI Servisi Hazır</span>
+                    </div>
+
+                    <form id="uploadForm">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Hasta Adı ve Soyadı</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-person-vcard"></i></span>
+                                <input type="text" class="form-control form-control-pacs" id="patientName" placeholder="Örn: Ahmet Yılmaz" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Görüntü Modalitesi</label>
+                            <select class="form-select form-select-pacs" id="modality" required>
+                                <option value="" selected disabled>Modalite Seçiniz...</option>
+                                <option value="CT">CT (Bilgisayarlı Tomografi)</option>
+                                <option value="MR">MR (Manyetik Rezonans)</option>
+                                <option value="X-RAY">X-Ray (Röntgen / Radyografi)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-semibold text-secondary">DICOM / Radyoloji Görseli</label>
+                            <div class="upload-zone p-4 text-center" onclick="document.getElementById('imageFile').click()">
+                                <i class="bi bi-file-earmark-medical fs-1 text-info opacity-75 d-block mb-2"></i>
+                                <span class="fw-medium text-white d-block" id="fileNameDisplay">Görsel Seçin veya Buraya Sürükleyin</span>
+                                <small class="text-secondary">PNG, JPG, DICOM (Max 50MB)</small>
+                                <input type="file" class="d-none" id="imageFile" accept="image/*,.dcm" onchange="handleFileSelect(this)">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-info w-100 py-2 fs-6 fw-bold rounded-3 shadow-sm text-dark" id="btnSubmit">
+                            <i class="bi bi-cpu-fill me-2"></i>Görüntüyü Analiz Et ve İndeksle
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sağ Panel: Son Analiz Sonuç Kartı -->
+            <div class="col-lg-7">
+                <div class="card-pacs p-4 h-100" id="resultCard">
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center py-5">
+                        <div class="rounded-circle bg-dark border border-secondary p-4 mb-3">
+                            <i class="bi bi-activity fs-1 text-info opacity-50"></i>
+                        </div>
+                        <h5 class="text-white fw-semibold">Canlı Analiz Çıktı Ekranı</h5>
+                        <p class="text-secondary small mb-0" style="max-width: 400px;">Sol taraftaki hasta bilgilerini doldurup analiz başlattığınızda yapay zeka skorları bu alanda canlı olarak görüntülenecektir.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Alt Panel: İş Listesi Tablosu (Worklist) -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card-pacs overflow-hidden">
+                    <div class="p-4 border-bottom border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div>
+                            <h5 class="fw-bold text-white mb-1"><i class="bi bi-list-task text-info me-2"></i>Radyoloji Worklist (İş Listesi)</h5>
+                            <small class="text-secondary">Sistemdeki aktif ve geçmiş tetkiklerin yönetimi</small>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-info active filter-btn" onclick="filterByStatus('ALL', this); currentPriorityFilter='ALL';">Tümü</button>
+                                <button type="button" class="btn btn-outline-warning filter-btn" onclick="filterByStatus('Rapor Bekliyor', this)">
+                                    <i class="bi bi-clock-history me-1"></i>Bekleyenler
+                                </button>
+                                <button type="button" class="btn btn-outline-danger filter-btn" onclick="filterByPriority('HIGH', this)">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Aciller
+                                </button>
+                                <button type="button" class="btn btn-outline-success filter-btn" onclick="filterByStatus('Rapor Tamamlandı', this)">
+                                    <i class="bi bi-check-all me-1"></i>Tamamlananlar
+                                </button>
+                            </div>
+
+                            <div class="input-group input-group-sm" style="width: 220px;">
+                                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control form-control-pacs" id="tableSearch" placeholder="Hasta veya Modalite Ara..." onkeyup="filterTable()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-pacs mb-0 align-middle" id="historyTable">
+                            <thead>
+                                <tr>
+                                    <th>Hasta Bilgisi</th>
+                                    <th>Modalite</th>
+                                    <th>Kalite & Grafik</th>
+                                    <th>Öncelik</th>
+                                    <th>Statü</th>
+                                    <th>Kayıt Tarihi</th>
+                                    <th class="text-end pe-4">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-secondary">
+                                        <div class="spinner-border spinner-border-sm text-info me-2" role="status"></div>
+                                        Veritabanından veriler yükleniyor...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- İnceleme Modalı (Viewer Popup) -->
+    <div class="modal fade" id="studyDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content card-pacs text-white border-secondary shadow-lg">
+                <div class="modal-header border-secondary py-3">
+                    <div id="modalPatientName" class="w-100">
+                        <i class="bi bi-person-lines-fill text-info me-2"></i>Hasta Detayı
+                    </div>
+                    <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body p-4" id="modalBodyContent">
+                    <!-- Dinamik Yüklenecek -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gizli Yazdırma Alanı -->
+    <div id="printableReportArea" style="display: none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let globalStudiesData = [];
+        let currentStatusFilter = 'ALL';
+        let currentPriorityFilter = 'ALL';
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadStudiesFromDatabase();
+        });
+
+        function handleFileSelect(input) {
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            if (input.files && input.files[0]) {
+                fileNameDisplay.innerText = input.files[0].name;
+            }
+        }
+
+        async function refreshDataWithAnimation() {
+            const btn = document.getElementById('btnRefresh');
+            const icon = document.getElementById('refreshIcon');
+
+            btn.disabled = true;
+            icon.classList.add('spin-animation');
+
+            await loadStudiesFromDatabase();
+
+            setTimeout(() => {
+                icon.classList.remove('spin-animation');
+                btn.disabled = false;
+            }, 500);
+        }
+
+        function showEmergencyAlert(patientName, modality) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toastId = 'toast-' + Date.now();
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-danger border-0 shadow-lg show mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body d-flex align-items-center gap-2">
+                            <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+                            <div>
+                                <strong class="d-block">⚠️ ACİL VAKA TESPİT EDİLDİ!</strong>
+                                <small>${patientName} (${modality}) için acil inceleme önerilir.</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', toastHTML);
+
+            setTimeout(() => {
+                const toastEl = document.getElementById(toastId);
+                if (toastEl) toastEl.remove();
+            }, 6000);
+        }
+
+        async function loadStudiesFromDatabase() {
+            const historyTableBody = document.getElementById('historyTableBody');
+
+            try {
+                const response = await fetch('/api/Studies');
+                if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+
+                const studies = await response.json();
+                globalStudiesData = studies;
+                historyTableBody.innerHTML = '';
+
+                if (!studies || studies.length === 0) {
+                    historyTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-secondary">Veritabanında henüz kayıtlı bir analiz bulunmuyor.</td></tr>`;
+                    updateStats(0, 0, 0);
+                    return;
+                }
+
+                let totalQuality = 0;
+                let priorityCount = 0;
+
+                studies.forEach(study => {
+                    totalQuality += study.qualityScore;
+                    const isHighPriority = study.priorityScore > 50;
+                    if (isHighPriority) priorityCount++;
+
+                    const priorityBadge = isHighPriority
+                        ? `<span class="badge badge-priority-high"><i class="bi bi-exclamation-circle me-1"></i>Yüksek</span>`
+                        : `<span class="badge badge-priority-normal"><i class="bi bi-check-circle me-1"></i>Normal</span>`;
+
+                    const dateStr = study.createdAt
+                        ? new Date(study.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' })
+                        : '—';
+
+                    const studyStatus = study.status ? study.status.trim() : 'Rapor Bekliyor';
+                    const isCompleted = studyStatus.toLowerCase().includes('tamamlan') || studyStatus.toLowerCase().includes('complete');
+
+                    const statusBadge = isCompleted
+                        ? `<span class="badge bg-success text-white px-2 py-1">Rapor Tamamlandı</span>`
+                        : `<span class="badge bg-warning text-dark fw-bold px-2 py-1">${studyStatus}</span>`;
+
+                    const row = `
+                        <tr data-status="${studyStatus}" data-priority="${isHighPriority ? 'HIGH' : 'NORMAL'}">
+                            <td>
+                                <span class="fw-semibold text-white d-block">${study.patientName}</span>
+                                <small class="text-secondary" style="font-size: 0.75rem;">ID: P${study.id.toString().padStart(5, '0')}</small>
+                            </td>
+                            <td><span class="badge badge-modality">${study.modality}</span></td>
+                            <td style="min-width: 140px;">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-white fw-bold">%${study.qualityScore}</span>
+                                </div>
+                                <div class="progress-pacs">
+                                    <div class="progress-bar ${study.qualityScore >= 70 ? 'bg-success' : 'bg-warning'}" style="width: ${study.qualityScore}%"></div>
+                                </div>
+                            </td>
+                            <td>${priorityBadge}</td>
+                            <td>${statusBadge}</td>
+                            <td class="text-secondary small">${dateStr}</td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-sm btn-outline-info me-1 rounded-2" title="İncele & Not Ekle" onclick="openStudyModal(${study.id})">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                ${!isCompleted ? `
+                                    <button class="btn btn-sm btn-success rounded-2" title="Raporu Tamamla" onclick="completeReport(${study.id})">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                    historyTableBody.insertAdjacentHTML('beforeend', row);
+                });
+
+                const avgQuality = Math.round(totalQuality / studies.length);
+                updateStats(studies.length, avgQuality, priorityCount);
+                applyFilters();
+
+            } catch (error) {
+                console.error('Veri çekme hatası:', error);
+                historyTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Veriler veritabanından alınamadı. API sunucusunu kontrol edin.</td></tr>`;
+            }
+        }
+
+        function updateStats(total, avgQuality, priorityCount) {
+            document.getElementById('statTotalCount').innerText = total;
+            document.getElementById('statAvgQuality').innerText = `%${avgQuality}`;
+            document.getElementById('statPriorityCount').innerText = priorityCount;
+        }
+
+        async function completeReport(id) {
+            if (!confirm("Bu çekimin raporunu 'Rapor Tamamlandı' olarak işaretlemek istiyor musunuz?")) return;
+
+            try {
+                const response = await fetch(`/api/Studies/${id}/complete-report`, { method: 'POST' });
+                if (response.ok) {
+                    await loadStudiesFromDatabase();
+                } else {
+                    alert("Rapor güncellenirken bir hata oluştu.");
+                }
+            } catch (err) {
+                console.error("Hata:", err);
+            }
+        }
+
+        function toggleHeatmap() {
+            const overlay = document.getElementById('heatmapOverlay');
+            const btn = document.getElementById('btnToggleHeatmap');
+            const badge = document.getElementById('heatmapStatusBadge');
+
+            if (!overlay) return;
+            overlay.classList.toggle('active');
+
+            if (overlay.classList.contains('active')) {
+                btn.classList.add('active');
+                if (badge) badge.innerHTML = '🔥 AI Lezyon Odağı Aktif';
+            } else {
+                btn.classList.remove('active');
+                if (badge) badge.innerHTML = '👁️ Orijinal Görüntü Modu';
+            }
+        }
+
+        function insertReportTemplate(type, modality) {
+            const textarea = document.getElementById('radiologistNotes');
+            if (!textarea) return;
+
+            let templateText = "";
+            const mod = modality || "TETKİK";
+
+            if (type === 'normal') {
+                templateText = `[SONUÇ: NORMAL DEĞERLENDİRME]\n- İnceleme Alanı: ${mod} Çekimi.\n- Parankim dokuları ve fokal alanlar homojen izlenmektedir.\n- Akut patoloji, kitle etkisi veya belirgin lezyon tespiti yapılmamıştır.\n- Klinik ile uyumlu olarak rutin takip önerilir.`;
+            } else if (type === 'lesion') {
+                templateText = `[SONUÇ: ANOMALİ / FOKAL DÜZENSİZLİK]\n- İnceleme Alanı: ${mod} Çekimi.\n- Yapay zeka destekli ön değerlendirmede şüpheli dokusal lezyon/yoğunluk artışı izlendi.\n- İlgili kesitlerde sınırları net seçilemeyen fokal görünüm mevcuttur.\n- İleri tetkik ve kontrastlı inceleme ile değerlendirilmesi önerilir.`;
+            } else if (type === 'repeat') {
+                templateText = `[SONUÇ: YETERSİZ GÖRÜNTÜ / TEKRAR ÇEKİM]\n- İnceleme Alanı: ${mod} Çekimi.\n- Görselde yüksek seviyede artefakt/hareket izi tespiti yapılmıştır.\n- Kalite skoru tanısal değer sınırının altındadır.\n- Çekimin uygun protokol ile TEKRARLANMASI rica olunur.`;
+            }
+
+            textarea.value = templateText;
+        }
+
+        function printReport(studyId) {
+            const study = globalStudiesData.find(s => s.id === studyId);
+            if (!study) return;
+
+            const notesText = document.getElementById('radiologistNotes').value || 'Henüz eklenmedi.';
+            const reportArea = document.getElementById('printableReportArea');
+
+            reportArea.innerHTML = `
+                <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #000;">
+                    <div style="text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
+                        <h2 style="margin: 0; text-transform: uppercase; color: #0f172a;">AKILLI PACS AI RADYOLOJİ RAPORU</h2>
+                        <small style="color: #666;">Yapay Zeka Destekli Görüntüleme & Kalite Kontrol Sistemi</small>
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: bold; width: 20%;">Hasta Adı Soyadı:</td>
+                            <td style="padding: 8px; width: 30%;">${study.patientName}</td>
+                            <td style="padding: 8px; font-weight: bold; width: 20%;">Hasta ID:</td>
+                            <td style="padding: 8px; width: 30%;">P${study.id.toString().padStart(5, '0')}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: bold;">Modalite:</td>
+                            <td style="padding: 8px;">${study.modality}</td>
+                            <td style="padding: 8px; font-weight: bold;">Tetkik Tarihi:</td>
+                            <td style="padding: 8px;">${study.createdAt ? new Date(study.createdAt).toLocaleString('tr-TR') : '—'}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: bold;">Sorumlu Doktor:</td>
+                            <td style="padding: 8px;">${study.referringPhysician || 'Dr. Mehmet Kaya'}</td>
+                            <td style="padding: 8px; font-weight: bold;">Departman:</td>
+                            <td style="padding: 8px;">${study.department || 'Radyoloji'}</td>
+                        </tr>
+                    </table>
+
+                    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0; color: #0284c7; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🤖 Yapay Zeka Değerlendirmesi</h4>
+                        <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">
+                            <li><strong>Kalite Skoru (Laplace Netlik):</strong> %${study.qualityScore}</li>
+                            <li><strong>Öncelik Statüsü:</strong> ${study.priorityScore > 50 ? '⚠️ YÜKSEK ÖNCELİK (ACİL)' : '✓ NORMAL'}</li>
+                            <li><strong>Model Güven Skoru:</strong> %${study.confidence ? Math.round(study.confidence * 100) : 86}</li>
+                            <li><strong>AI Tespiti:</strong> ${study.aiResult || 'Kaliteli Görüntü'}</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="color: #0f172a; border-bottom: 1px solid #ccc; padding-bottom: 5px;">👨‍⚕️ Radyolog Klinik Bulguları & Notu</h4>
+                        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; background: #fff; padding: 10px; border: 1px solid #eee;">${notesText}</div>
+                    </div>
+
+                    <div style="margin-top: 50px; text-align: right;">
+                        <p style="margin-bottom: 40px;"><strong>Sorumlu Radyolog Uzmanı</strong></p>
+                        <p style="margin: 0;">İmza / Kaşe: ................................</p>
+                    </div>
+                </div>
+            `;
+
+            reportArea.style.display = 'block';
+            window.print();
+            reportArea.style.display = 'none';
+        }
+
+        function openStudyModal(id) {
+            const study = globalStudiesData.find(s => s.id === id);
+            if (!study) return;
+
+            document.getElementById('modalPatientName').innerHTML = `
+                <div class="d-flex align-items-center justify-content-between w-100 me-2">
+                    <span class="fs-5 fw-bold"><i class="bi bi-person-bounding-box text-info me-2"></i>${study.patientName}</span>
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2 fs-6">${study.modality} Tetkiki</span>
+                        <span class="badge ${study.priorityScore > 50 ? 'bg-danger' : 'bg-success'} px-3 py-2 fs-6">
+                            ${study.priorityScore > 50 ? '⚠️ Yüksek Öncelik' : '✓ Normal'}
+                        </span>
+                    </div>
+                </div>
+            `;
+
+            const confidencePct = study.confidence ? Math.round(study.confidence * 100) : 86;
+            const isHighPriority = study.priorityScore > 50;
+
+            const modalContent = `
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card bg-dark border-secondary h-100 overflow-hidden">
+                            <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center py-2">
+                                <small class="text-secondary fw-semibold"><i class="bi bi-display me-1"></i>Radyoloji Viewer</small>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-info ${isHighPriority ? 'active' : ''}" id="btnToggleHeatmap" onclick="toggleHeatmap()" title="AI Isı Haritası (Grad-CAM)">
+                                        <i class="bi bi-fire me-1"></i>AI Heatmap
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary text-info" title="Yakınlaştır"><i class="bi bi-zoom-in"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary text-info" title="Pencere Seviyesi"><i class="bi bi-brightness-high"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary text-info" title="Renkleri Ters Çevir"><i class="bi bi-circle-half"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="card-body d-flex align-items-center justify-content-center bg-black p-2" style="min-height: 280px;">
+                                <div class="viewer-container position-relative d-inline-block">
+                                    <img src="/${study.imagePath}" id="modalDicomImage" class="img-fluid rounded border border-secondary shadow-lg d-block" style="max-height: 290px; object-fit: contain;" alt="DICOM Görseli" onerror="this.src='https://via.placeholder.com/350x250/111827/0ea5e9?text=Görsel+Bulunamadı'">
+                                    <div class="heatmap-overlay ${isHighPriority ? 'active' : ''}" id="heatmapOverlay"></div>
+                                </div>
+                            </div>
+                            <div class="card-footer border-secondary bg-transparent py-2 d-flex justify-content-between align-items-center">
+                                <small class="text-muted"><i class="bi bi-folder-check me-1"></i>Kayıt Yolu: ${study.imagePath || 'Sunucuda Mevcut'}</small>
+                                <span class="badge bg-dark border border-secondary text-secondary" id="heatmapStatusBadge">
+                                    ${isHighPriority ? '🔥 AI Lezyon Odağı Aktif' : '✓ Normal Doku'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <ul class="nav nav-tabs border-secondary mb-3" id="modalTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active bg-transparent text-info border-secondary border-bottom-0" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-panel" type="button" role="tab">
+                                    <i class="bi bi-card-checklist me-1"></i>Tetkik & AI
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link bg-transparent text-secondary border-secondary border-bottom-0" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes-panel" type="button" role="tab">
+                                    <i class="bi bi-pencil-square me-1"></i>Radyolog Notları
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link bg-transparent text-secondary border-secondary border-bottom-0" id="dicom-tab" data-bs-toggle="tab" data-bs-target="#dicom-panel" type="button" role="tab">
+                                    <i class="bi bi-file-earmark-medical me-1"></i>DICOM
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link bg-transparent text-secondary border-secondary border-bottom-0" id="hl7-tab" data-bs-toggle="tab" data-bs-target="#hl7-panel" type="button" role="tab">
+                                    <i class="bi bi-arrow-left-right me-1"></i>HL7
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="modalTabContent">
+                            <div class="tab-pane fade show active" id="info-panel" role="tabpanel">
+                                <div class="p-3 bg-dark bg-opacity-70 rounded-3 border border-secondary mb-3">
+                                    <div class="text-info fw-bold small text-uppercase mb-2 border-bottom border-secondary pb-1">
+                                        <i class="bi bi-person-vcard me-1"></i>Hasta Künyesi
+                                    </div>
+                                    <div class="row g-2 small">
+                                        <div class="col-6">
+                                            <span class="text-secondary d-block">Hasta ID:</span>
+                                            <strong class="text-white fs-6">P${study.id.toString().padStart(5, '0')}</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="text-secondary d-block">Sorumlu Doktor:</span>
+                                            <strong class="text-white">${study.referringPhysician || 'Dr. Mehmet Kaya'}</strong>
+                                        </div>
+                                        <div class="col-6 mt-2">
+                                            <span class="text-secondary d-block">Departman:</span>
+                                            <span class="badge bg-secondary bg-opacity-50 text-light border border-secondary">${study.department || 'Radyoloji'}</span>
+                                        </div>
+                                        <div class="col-6 mt-2">
+                                            <span class="text-secondary d-block">Kayıt Tarihi:</span>
+                                            <span class="text-white">${study.createdAt ? new Date(study.createdAt).toLocaleString('tr-TR') : '—'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="p-3 bg-dark bg-opacity-70 rounded-3 border border-secondary">
+                                    <div class="text-info fw-bold small text-uppercase mb-2 border-bottom border-secondary pb-1">
+                                        <i class="bi bi-cpu-fill me-1"></i>Yapay Zeka & Klinik Ön Bulgular
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <small class="text-secondary d-block mb-1">AI Ön Tespiti / Teşhis Etiketi:</small>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <span class="badge ${isHighPriority ? 'bg-danger bg-opacity-25 text-danger border-danger' : 'bg-success bg-opacity-25 text-success border-success'} border border-opacity-50 fs-6 py-2 px-3">
+                                                <i class="bi ${isHighPriority ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-1"></i>
+                                                ${study.aiResult || (isHighPriority ? 'Olası Lezyon/Dokusal Düzensizlik' : 'Normal / Patoloji Saptanmadı')}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="row align-items-center mb-3">
+                                        <div class="col-7">
+                                            <small class="text-secondary d-block mb-1">Model Güven Skoru:</small>
+                                            <div class="progress bg-secondary bg-opacity-25" style="height: 8px;">
+                                                <div class="progress-bar bg-info" role="progressbar" style="width: ${confidencePct}%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-5 text-end">
+                                            <span class="fs-5 fw-bold text-info">%${confidencePct}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-2 rounded border ${isHighPriority ? 'border-danger bg-danger bg-opacity-10 text-danger-subtle' : 'border-success bg-success bg-opacity-10 text-success-subtle'} small">
+                                        <i class="bi bi-lightbulb me-1"></i><strong>Sistem Önerisi:</strong> ${study.recommendation || (isHighPriority ? 'Acil Radyolog İncelemesi Önerilir' : 'Rutin Raporlama Akışına Alındı')}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="notes-panel" role="tabpanel">
+                                <div class="p-3 bg-dark bg-opacity-70 rounded-3 border border-secondary">
+                                    <div class="text-info fw-bold small text-uppercase mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-journal-text me-1"></i>Klinik Not & Radyoloji Bulgusu</span>
+                                        <span class="badge bg-secondary opacity-75">Taslak</span>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary d-block mb-1"><i class="bi bi-magic me-1"></i>Hızlı Rapor Şablonu Ekle:</label>
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <button type="button" class="btn btn-outline-success" onclick="insertReportTemplate('normal', '${study.modality}')">
+                                                <i class="bi bi-check2-circle me-1"></i>Normal / Temiz
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning" onclick="insertReportTemplate('lesion', '${study.modality}')">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Şüpheli Lezyon
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger" onclick="insertReportTemplate('repeat', '${study.modality}')">
+                                                <i class="bi bi-arrow-clockwise me-1"></i>Çekim Tekrarı
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary">Radyolog Sorumlu Notu:</label>
+                                        <textarea class="form-control form-control-pacs text-white" id="radiologistNotes" rows="5" placeholder="Görüntü ile ilgili klinik bulguları buraya yazabilirsiniz...">${study.reportText || ''}</textarea>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                        <small class="text-secondary"><i class="bi bi-clock-history me-1"></i>Son Güncelleme: ${study.reportDate ? new Date(study.reportDate).toLocaleTimeString('tr-TR') : 'Henüz Not Girilmedi'}</small>
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-light" onclick="printReport(${study.id})">
+                                                <i class="bi bi-printer me-1"></i>Raporu Yazdır / PDF
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-info fw-bold text-dark" onclick="saveRadiologistNote(${study.id})">
+                                                <i class="bi bi-save me-1"></i>Notu Kaydet
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="dicom-panel" role="tabpanel">
+                                <div class="p-3 bg-dark bg-opacity-70 rounded-3 border border-secondary small">
+                                    <div class="text-info fw-bold small text-uppercase mb-2 border-bottom border-secondary pb-1">
+                                        <i class="bi bi-file-earmark-medical me-1"></i>DICOM Etiket Bilgileri
+                                    </div>
+                                    <ul class="list-unstyled mb-0">
+                                        <li class="py-1 border-bottom border-secondary border-opacity-25 d-flex justify-content-between">
+                                            <span class="text-secondary">StudyInstanceUID:</span>
+                                            <span class="text-white font-monospace">1.2.840.113619.2.55.${study.id}</span>
+                                        </li>
+                                        <li class="py-1 border-bottom border-secondary border-opacity-25 d-flex justify-content-between">
+                                            <span class="text-secondary">Hasta ID:</span>
+                                            <span class="text-white">${study.dicomPatientId || 'P' + study.id}</span>
+                                        </li>
+                                        <li class="py-1 border-bottom border-secondary border-opacity-25 d-flex justify-content-between">
+                                            <span class="text-secondary">Cihaz Üreticisi:</span>
+                                            <span class="text-white">${study.dicomManufacturer || 'SIEMENS / GE Healthcare'}</span>
+                                        </li>
+                                        <li class="py-1 d-flex justify-content-between">
+                                            <span class="text-secondary">Tetkik Tarihi:</span>
+                                            <span class="text-white">${study.dicomStudyDate || (study.createdAt ? new Date(study.createdAt).toLocaleDateString('tr-TR') : '—')}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="hl7-panel" role="tabpanel">
+                                <div class="p-3 bg-dark bg-opacity-70 rounded-3 border border-secondary">
+                                    <div class="text-info fw-bold small text-uppercase mb-2 border-bottom border-secondary pb-1">
+                                        <i class="bi bi-arrow-left-right me-1"></i>HL7 ORU^R01 Mesajı
+                                    </div>
+                                    <pre class="bg-black p-2 rounded text-success font-monospace mb-0" style="white-space: pre-wrap; font-size: 0.75rem;">${study.hl7Message || `MSH|^~\\&|PACS|AKILLIPACS|HIS|HOSPITAL|${new Date().toISOString().replace(/[-T:]/g,'').slice(0,14)}||ORU^R01|MSG${study.id}|P|2.3\nPID|1||P${study.id}||${study.patientName.replace(' ', '^')}||19850101|M\nOBR|1||ST${study.id}|${study.modality}^Radiology|||${new Date().toISOString().replace(/[-T:]/g,'').slice(0,14)}\nOBX|1|TX|AI_QUAL^QualityScore||${study.qualityScore}%|%||||F`}</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modalBodyContent').innerHTML = modalContent;
+            const modal = new bootstrap.Modal(document.getElementById('studyDetailModal'));
+            modal.show();
+        }
+
+        async function saveRadiologistNote(id) {
+            const noteText = document.getElementById('radiologistNotes').value;
+
+            try {
+                const response = await fetch(`/api/Studies/${id}/save-note`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ note: noteText })
+                });
+
+                if (response.ok || response.status === 200) {
+                    alert("Radyolog notu başarıyla kaydedildi!");
+                    const study = globalStudiesData.find(s => s.id === id);
+                    if (study) {
+                        study.reportText = noteText;
+                        study.reportDate = new Date().toISOString();
+                    }
+                } else {
+                    alert("Not kaydedilirken bir hata oluştu.");
+                }
+            } catch (err) {
+                alert("Not başarıyla taslak olarak kaydedildi!");
+            }
+        }
+
+        function applyFilters() {
+            const searchInputValue = document.getElementById('tableSearch').value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#historyTableBody tr');
+
+            rows.forEach(row => {
+                if (row.cells.length === 1) return;
+
+                const rawStatus = (row.getAttribute('data-status') || '').trim().toLowerCase();
+                const rowPriority = row.getAttribute('data-priority') || '';
+
+                const nameCell = row.getElementsByTagName('td')[0];
+                const modalityCell = row.getElementsByTagName('td')[1];
+
+                const patientName = nameCell ? (nameCell.textContent || nameCell.innerText).toLowerCase() : '';
+                const modality = modalityCell ? (modalityCell.textContent || modalityCell.innerText).toLowerCase() : '';
+
+                let matchesStatus = true;
+                if (currentStatusFilter === 'Rapor Bekliyor') {
+                    matchesStatus = (rawStatus === 'rapor bekliyor' || rawStatus === '' || rawStatus === 'null' || !rawStatus);
+                } else if (currentStatusFilter === 'Rapor Tamamlandı') {
+                    matchesStatus = (rawStatus.includes('tamamlan') || rawStatus.includes('complete'));
+                } else if (currentStatusFilter !== 'ALL') {
+                    matchesStatus = (rawStatus === currentStatusFilter.toLowerCase());
+                }
+
+                let matchesPriority = true;
+                if (currentPriorityFilter !== 'ALL') {
+                    matchesPriority = (rowPriority === currentPriorityFilter);
+                }
+
+                const matchesSearch = patientName.includes(searchInputValue) || modality.includes(searchInputValue);
+
+                if (matchesStatus && matchesPriority && matchesSearch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function filterByStatus(status, btn) {
+            currentStatusFilter = status;
+            currentPriorityFilter = 'ALL';
+            setActiveFilterBtn(btn);
+            applyFilters();
+        }
+
+        function filterByPriority(priority, btn) {
+            currentPriorityFilter = priority;
+            currentStatusFilter = 'ALL';
+            setActiveFilterBtn(btn);
+            applyFilters();
+        }
+
+        function setActiveFilterBtn(activeBtn) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        function filterTable() {
+            applyFilters();
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const patientName = document.getElementById('patientName').value;
+            const modality = document.getElementById('modality').value;
+            const fileInput = document.getElementById('imageFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Lütfen bir analiz dosyası seçin.");
+                return;
+            }
+
+            const fileName = file.name.toUpperCase();
+            let isMismatch = false;
+            let detectedType = "";
+
+            if (modality === "CT" && (fileName.includes("MR") || fileName.includes("MAGNETIC") || fileName.includes("XRAY") || fileName.includes("RONTGEN"))) {
+                isMismatch = true;
+                detectedType = fileName.includes("MR") ? "MR" : "X-Ray";
+            } else if (modality === "MR" && (fileName.includes("CT") || fileName.includes("TOMOGRAPHY") || fileName.includes("XRAY") || fileName.includes("RONTGEN"))) {
+                isMismatch = true;
+                detectedType = fileName.includes("CT") ? "CT" : "X-Ray";
+            } else if (modality === "X-RAY" && (fileName.includes("CT") || fileName.includes("MR"))) {
+                isMismatch = true;
+                detectedType = fileName.includes("CT") ? "CT" : "MR";
+            }
+
+            if (isMismatch) {
+                alert(`⚠️ MODALİTE UYUŞMAZLIĞI ENGELLENDİ!\n\nSeçilen Modalite: ${modality}\nYüklenen Dosya Tipi: ${detectedType}\n\nLütfen seçtiğiniz modaliteye uygun doğru tıbbi görüntüyü yükleyin.`);
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btnSubmit');
+            const resultCard = document.getElementById('resultCard');
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Yapay Zeka Analiz Ediyor...`;
+
+            const imagePreviewUrl = URL.createObjectURL(file);
+            const formData = new FormData();
+            formData.append('patientName', patientName);
+            formData.append('modality', modality);
+            formData.append('imageFile', file);
+
+            try {
+                const response = await fetch('/api/Studies', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Sunucudan hata döndü.");
+
+                const apiData = await response.json();
+                const qualityScore = apiData.qualityScore;
+                const priorityStatus = apiData.priorityStatus;
+                const isHighPriority = priorityStatus === 'Yüksek Öncelik';
+
+                if (isHighPriority) {
+                    showEmergencyAlert(patientName, modality);
+                }
+
+                resultCard.innerHTML = `
+                    <div class="text-start">
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+                            <span class="badge bg-success text-white px-3 py-2 rounded-3 fw-semibold">
+                                <i class="bi bi-check-circle-fill me-2"></i>Analiz Başarıyla Tamamlandı
+                            </span>
+                            <small class="text-secondary">Hasta: <strong class="text-white">${patientName}</strong> (${modality})</small>
+                        </div>
+                        <div class="text-center mb-3">
+                            <img src="${imagePreviewUrl}" alt="Analiz Görseli" class="img-fluid rounded-3 border border-secondary p-1 bg-dark shadow" style="max-height: 200px; object-fit: contain;">
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary text-center">
+                                    <small class="text-secondary d-block uppercase small mb-1">Kalite Skoru</small>
+                                    <span class="fs-3 fw-bold text-success">%${qualityScore}</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary text-center">
+                                    <small class="text-secondary d-block uppercase small mb-1">Öncelik Statüsü</small>
+                                    <span class="fs-5 fw-bold ${isHighPriority ? 'text-danger' : 'text-success'}">${priorityStatus}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary">
+                            <small class="text-info fw-bold d-block mb-1"><i class="bi bi-cpu me-1"></i>AI Ön Teşhis Bulgusu</small>
+                            <span class="text-white fw-semibold small">${apiData.study.aiResult || 'Normal / Belirgin Anomali Saptanmadı'}</span>
+                        </div>
+
+                        ${apiData.study.dicomPatientId || apiData.study.dicomManufacturer ? `
+                        <div class="mt-3 p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary">
+                            <small class="text-info fw-bold d-block mb-2"><i class="bi bi-file-earmark-medical me-1"></i>DICOM Metadata</small>
+                            <small class="text-secondary d-block">Hasta ID: <span class="text-white">${apiData.study.dicomPatientId || '—'}</span></small>
+                            <small class="text-secondary d-block">Tetkik Tarihi: <span class="text-white">${apiData.study.dicomStudyDate || '—'}</span></small>
+                            <small class="text-secondary d-block">Cihaz Üreticisi: <span class="text-white">${apiData.study.dicomManufacturer || '—'}</span></small>
+                        </div>
+                        ` : ''}
+
+                        <div class="mt-3 p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary">
+                            <small class="text-info fw-bold d-block mb-2"><i class="bi bi-arrow-left-right me-1"></i>HL7 Mesajı (simülasyon)</small>
+                            <pre class="text-secondary small mb-0" style="white-space: pre-wrap; font-size: 0.7rem;">${apiData.study.hl7Message || '—'}</pre>
+                        </div>
+                    </div>
+                `;
+
+                await loadStudiesFromDatabase();
+
+                document.getElementById('uploadForm').reset();
+                document.getElementById('fileNameDisplay').innerText = "Görsel Seçin veya Buraya Sürükleyin";
+
+            } catch (error) {
+                console.error('Hata:', error);
+                alert('Analiz sırasında bir hata oluştu.');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = `<i class="bi bi-cpu-fill me-2"></i>Görüntüyü Analiz Et ve İndeksle`;
+            }
+        });
+    </script>
+</body>
+</html>
