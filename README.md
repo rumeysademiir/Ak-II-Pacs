@@ -4,20 +4,19 @@ Bu proje, **Yozgat Bozok Üniversitesi Bilgisayar Mühendisliği Bölümü** yaz
 
 Sistem; yüklenen radyolojik görüntüleri (CT/MR/X-Ray) otomatik olarak analiz ederek bir **kalite skoru** üretir, bu skora göre **öncelik** belirler, **DICOM metadata**sını okur, basitleştirilmiş bir **HL7 mesajı** oluşturur ve tüm sonuçları bir **PACS Worklist (iş listesi)** ekranında sunar.
 
-> ⚠️ **Not:** Bu proje eğitim/öğretim amaçlı bir prototiptir. Görüntü üzerindeki "AI ön bulgu", "AI Heatmap" ve güven skoru gibi göstergeler **gerçek bir yapay zekâ teşhis modelinden gelmemektedir**; yalnızca arayüz simülasyonudur ve klinik karar desteği için kullanılamaz.
+**Not:** Bu proje eğitim/öğretim amaçlı bir prototiptir. Görüntü üzerindeki "AI ön bulgu", "AI Heatmap" ve güven skoru gibi göstergeler **gerçek bir yapay zekâ teşhis modelinden gelmemektedir**; yalnızca arayüz simülasyonudur ve klinik karar desteği için kullanılamaz.
 
 ## Kullanılan Teknolojiler
 
-- **Backend:** ASP.NET Core Web API (C#)
-- **Veri Erişim Katmanı:** Dapper
-- **Veritabanı:** SQL Server
-- **Görüntü Analizi:** Python + OpenCV (Laplacian varyansı / kontrast analizi)
-- **DICOM Okuma:** pydicom
-- **Frontend:** Bootstrap 5.3, vanilla JavaScript
+**Backend:** ASP.NET Core Web API (C#)
+**Veri Erişim Katmanı:** Dapper
+**Veritabanı:** SQL Server
+**Görüntü Analizi:** Python + OpenCV (Laplacian varyansı / kontrast analizi)
+**DICOM Okuma:** pydicom
+**Frontend:** Bootstrap 5.3, vanilla JavaScript
 
 ## Sistem Akışı
 
-```
 Kullanıcı (Görüntü Yükleme)
         │
         ▼
@@ -60,7 +59,7 @@ Raporlama → "Rapor Tamamlandı"
 ├── App_Data/             → HL7 log dosyaları
 ├── analyzer.py           → Python görüntü kalite/DICOM analiz scripti
 └── Program.cs            → Uygulama giriş noktası
-```
+
 
 ## Çalıştırma
 
@@ -74,4 +73,4 @@ Raporlama → "Rapor Tamamlandı"
 ## Geliştirici
 
 Rümeysa Demir — Bilgisayar Mühendisliği, Yozgat Bozok Üniversitesi
-Staj: InterPacs Sağlık Çözümleri Ltd. Şti. (01.07.2026 – 28.07.2026)
+Staj: InterPacs Sağlık Çözümleri Ltd. Şti. (01.07.2026 – 29.07.2026)
